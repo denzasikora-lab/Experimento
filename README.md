@@ -52,9 +52,30 @@ Key settings:
 
 With `Ai__Provider=none` the system runs fully offline: heuristic predictions work, rationale is marked "LLM not configured".
 
-## Tests
+## Проверки
 
 ```bash
-cd backend && dotnet test
-cd frontend && npm run test
+(cd backend && dotnet test)
+(cd frontend && npm run lint && npx tsc --noEmit)
 ```
+
+Для браузерных проверок задайте `JWT_KEY` в `.env`, затем из корня репозитория
+запустите тестовый стек и заполните локальный каталог веществ:
+
+```bash
+docker compose -f docker-compose.yml -f .github/compose.ci.yml up -d --build
+docker compose -f docker-compose.yml -f .github/compose.ci.yml exec -T postgres psql -v ON_ERROR_STOP=1 -U experimento -d experimento < .github/ci/seed-catalog.sql
+cd frontend
+npm ci
+npx playwright install chromium
+npm run test:e2e:ci
+```
+
+После проверки остановите стек из корня репозитория:
+
+```bash
+docker compose -f docker-compose.yml -f .github/compose.ci.yml down
+```
+
+`npm run test:e2e` запускает весь набор браузерных сценариев, включая проверки,
+которым нужны внешние сервисы. В CI выполняется набор `@ci` с локальным каталогом.
