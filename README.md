@@ -52,30 +52,29 @@ Key settings:
 
 With `Ai__Provider=none` the system runs fully offline: heuristic predictions work, rationale is marked "LLM not configured".
 
-## Проверки
+## Tests
 
 ```bash
 (cd backend && dotnet test)
 (cd frontend && npm run lint && npx tsc --noEmit)
 ```
 
-Для браузерных проверок задайте `JWT_KEY` в `.env`, затем из корня репозитория
-запустите тестовый стек и заполните локальный каталог веществ:
+For browser smoke tests, set a unique `JWT_KEY` (at least 32 characters) in `.env`.
+The test stack seeds a known test account and uses fixed container names and ports, so
+stop any regular Experimento stack before starting it. Run these commands from the
+repository root; the separate Compose project keeps test data in isolated volumes:
 
 ```bash
-docker compose -f docker-compose.yml -f .github/compose.ci.yml up -d --build
-docker compose -f docker-compose.yml -f .github/compose.ci.yml exec -T postgres psql -v ON_ERROR_STOP=1 -U experimento -d experimento < .github/ci/seed-catalog.sql
-cd frontend
-npm ci
-npx playwright install chromium
-npm run test:e2e:ci
+docker compose -p experimento-ci -f docker-compose.yml -f .github/compose.ci.yml up -d --build
+docker compose -p experimento-ci -f docker-compose.yml -f .github/compose.ci.yml exec -T postgres psql -v ON_ERROR_STOP=1 -U experimento -d experimento < .github/ci/seed-catalog.sql
+(cd frontend && npm ci && npx playwright install chromium && npm run test:e2e:ci)
 ```
 
-После проверки остановите стек из корня репозитория:
+After the tests, remove only the isolated test stack and its volumes:
 
 ```bash
-docker compose -f docker-compose.yml -f .github/compose.ci.yml down
+docker compose -p experimento-ci -f docker-compose.yml -f .github/compose.ci.yml down -v
 ```
 
-`npm run test:e2e` запускает весь набор браузерных сценариев, включая проверки,
-которым нужны внешние сервисы. В CI выполняется набор `@ci` с локальным каталогом.
+`npm run test:e2e` runs the full browser suite, including scenarios that require
+external services. CI runs only the `@ci` subset with a seeded local catalog.
